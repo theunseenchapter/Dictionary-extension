@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "ContextWord",
+  "version": "0.1.0",
+  "description": "Don't just learn what a word means. Understand what it means here.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://api.dictionaryapi.dev/*"],
+  "background": { "service_worker": "assets/background.js", "type": "module" },
+  "content_scripts": [{
+    "matches": ["http://*/*", "https://*/*"],
+    "js": ["assets/content.js"],
+    "run_at": "document_idle",
+    "all_frames": false
+  }],
+  "web_accessible_resources": [{
+    "resources": ["data/wordnet-v2/*.json"],
+    "matches": ["http://*/*", "https://*/*"]
+  }],
+  "action": { "default_popup": "popup.html", "default_title": "ContextWord" },
+  "options_page": "options.html",
+  "commands": {
+    "toggle-contextword": {
+      "suggested_key": { "default": "Ctrl+Shift+W", "mac": "Command+Shift+W" },
+      "description": "Toggle ContextWord"
+    }
+  }
+}

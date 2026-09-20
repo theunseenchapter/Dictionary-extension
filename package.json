@@ -1,0 +1,30 @@
+{
+  "name": "contextword",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Understand what a word means here.",
+  "scripts": {
+    "dev": "node scripts/build.mjs --watch",
+    "build": "tsc --noEmit && node scripts/build.mjs",
+    "build:dictionary": "node scripts/build-wordnet.mjs",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "4.3.4",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "vite": "5.4.14"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.0.289",
+    "@types/node": "22.10.2",
+    "@types/react": "18.3.18",
+    "@types/react-dom": "18.3.5",
+    "eslint": "9.17.0",
+    "typescript": "5.7.2",
+    "typescript-eslint": "8.19.1",
+    "vitest": "2.1.9"
+  }
+}

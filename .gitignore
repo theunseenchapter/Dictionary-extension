@@ -1,0 +1,29 @@
+# Dependencies and production output
+node_modules/
+dist/
+
+# Local WordNet source download; processed data in public/data/wordnet-v2 is tracked.
+vendor/
+
+# Local configuration and logs
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Test coverage and caches
+coverage/
+.vitest/
+.vite/
+*.tsbuildinfo
+
+# Editor and operating-system files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
