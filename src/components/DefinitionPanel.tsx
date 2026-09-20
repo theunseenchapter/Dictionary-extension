@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import type { AdaptivePalette } from "../utils/adaptiveTheme";
 import type { DictionaryEntry } from "../types";
 
-interface Props { word: string; context: string; theme: "system" | "light" | "dark"; entry?: DictionaryEntry; error?: string; onClose: () => void; }
+interface Props { word: string; context: string; theme: "system" | "light" | "dark"; palette: AdaptivePalette; entry?: DictionaryEntry; error?: string; onClose: () => void; }
 
-export function DefinitionPanel({ word, context, theme, entry, error, onClose }: Props) {
+export function DefinitionPanel({ word, context, theme, palette, entry, error, onClose }: Props) {
   const closeButton = useRef<HTMLButtonElement>(null);
   const [position, setPosition] = useState<{ x: number; y: number }>();
   useEffect(() => { closeButton.current?.focus(); }, []);
@@ -25,16 +26,29 @@ export function DefinitionPanel({ word, context, theme, entry, error, onClose }:
     const end = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", end); };
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", end, { once: true });
   }
-  const first = entry?.definitions[0];
-  const style: CSSProperties | undefined = position ? { left: position.x, top: position.y, right: "auto", bottom: "auto" } : undefined;
-  return <aside className={`cw-panel${theme === "system" ? "" : ` cw-theme-${theme}`}`} style={style} role="dialog" aria-modal="false" aria-label={`Definition of ${word}`}>
-    <div className="cw-head" onPointerDown={startDrag} title="Drag to move"><div><h1 className="cw-word">{word}</h1>{entry?.phonetic && <span className="cw-muted">{entry.phonetic}</span>}{entry?.audio && <button className="cw-audio" aria-label={`Play pronunciation of ${word}`} onClick={() => new Audio(entry.audio).play().catch(() => undefined)}>🔊</button>}{entry?.partOfSpeech && <div className="cw-pos">{entry.partOfSpeech}</div>}</div><button ref={closeButton} className="cw-close" onClick={onClose} aria-label="Close definition panel">×</button></div>
-    {!entry && !error && <div className="cw-loading" role="status"><span className="cw-dot" /> Loading definition…</div>}
-    {error && <p className="cw-error" role="alert">{error}</p>}
-    {first && <>
-      <section className="cw-section"><span className="cw-label">Definition</span><p className="cw-definition">{first.definition}</p>{first.example && <p className="cw-example">“{first.example}”</p>}</section>
-      <section className="cw-section"><span className="cw-label">Original context</span><p className="cw-context">“{context}”</p></section>
-      {entry.synonyms.length > 0 && <section className="cw-section"><span className="cw-label">Similar words</span><div className="cw-chips">{entry.synonyms.map((word) => <span key={word} className="cw-chip">{word}</span>)}</div></section>}
+  const style: CSSProperties & Record<`--${string}`, string> = {
+    "--accent": palette.accent,
+    "--accent-soft": palette.accentSoft,
+    "--accent-light": palette.accentLight,
+    "--surface": palette.surface,
+    "--surface-secondary": palette.surfaceSecondary,
+    "--text-primary": palette.textPrimary,
+    "--text-secondary": palette.textSecondary,
+    "--border": palette.border,
+    "--highlight": palette.highlight,
+    ...(position ? { left: position.x, top: position.y, right: "auto", bottom: "auto" } : {})
+  };
+  return <aside className={`cw-panel${theme === "dark" ? " cw-theme-dark" : ""}`} style={style} role="dialog" aria-modal="false" aria-label={`Definition of ${word}`}>
+    <div className="cw-head" onPointerDown={startDrag} title="Drag to move"><div className="cw-title-block"><span className="cw-eyebrow">ContextWord <i>·</i> word insight</span><h1 className="cw-word">{word}</h1><div className="cw-meta">{entry?.phonetic && <span className="cw-phonetic">{entry.phonetic}</span>}{entry?.partOfSpeech && <span className="cw-pos">{entry.partOfSpeech}</span>}{entry?.audio && <button className="cw-audio" aria-label={`Play pronunciation of ${word}`} onClick={() => new Audio(entry.audio).play().catch(() => undefined)}>🔊</button>}</div></div><button ref={closeButton} className="cw-close" onClick={onClose} aria-label="Close definition panel">×</button></div>
+    <div className="cw-rule" />
+    {!entry && !error && <div className="cw-loading" role="status"><span className="cw-dot" /> Loading definition<span className="cw-loading-tail">...</span></div>}
+    {error && <p className="cw-error" role="alert"><strong>Lookup unavailable</strong>{error}</p>}
+    {entry && <>
+      <section className="cw-context-section"><span className="cw-label">In your sentence</span><p className="cw-context">“{context}”</p></section>
+      <div className="cw-bifurcation">
+        <section className="cw-meaning"><div className="cw-section-heading"><span className="cw-index">01</span><span className="cw-label">Meaning</span></div>{entry.definitions.map((definition, index) => <article className="cw-sense" key={`${definition.definition}-${index}`}><p className="cw-definition">{definition.definition}</p>{definition.example && <p className="cw-example">“{definition.example}”</p>}</article>)}</section>
+        <section className="cw-relations"><div className="cw-section-heading"><span className="cw-index">02</span><span className="cw-label">Word map</span></div>{entry.synonyms.length > 0 && <div className="cw-relation"><span className="cw-relation-label">Similar</span><div className="cw-chips">{entry.synonyms.map((synonym) => <span key={synonym} className="cw-chip">{synonym}</span>)}</div></div>}{entry.antonyms.length > 0 && <div className="cw-relation"><span className="cw-relation-label cw-opposite-label">Opposite</span><div className="cw-chips">{entry.antonyms.map((antonym) => <span key={antonym} className="cw-chip cw-chip-opposite">{antonym}</span>)}</div></div>}{entry.synonyms.length === 0 && entry.antonyms.length === 0 && <p className="cw-muted cw-empty">No close word relationships found.</p>}</section>
+      </div>
     </>}
   </aside>;
 }
