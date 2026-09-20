@@ -1,29 +1,33 @@
 # ContextWord
 
-> Don't just learn what a word means. Understand what it means here.
+> Understand what a word means where you found it.
 
-ContextWord is an open-source Chrome extension that lets you double-click a word and see its definition without leaving the page. Definitions come from a bundled offline WordNet dictionary, so normal lookups are private and fast.
+ContextWord is a privacy-first Chromium extension for looking up words without leaving the page. Double-click a word to open a compact definition panel with its meaning, the sentence it appeared in, related words, and pronunciation.
 
-## Features
+Definitions are resolved from a bundled offline WordNet dictionary by default, so routine lookups are fast and do not send webpage content anywhere.
 
-- Double-click a word to open a definition card on the webpage.
-- Offline definitions, parts of speech, synonyms, and surrounding sentence context.
-- Voice pronunciation for every lookup, using a supplied dictionary recording when available and the browser voice otherwise.
-- Handles common word forms such as plurals, `-ed`, `-ing`, and `-ies` words.
-- Draggable, keyboard-accessible panel; press `Escape` or click `×` to close it.
-- Light theme by default, with System and Dark options.
-- Local recent-lookup history and enable/disable toggle.
-- Optional online dictionary fallback for words absent from the offline data.
+## Highlights
+
+- **Double-click lookup** — select one word on a webpage and ContextWord opens its definition panel.
+- **Context-aware reading** — view the sentence containing the selected word alongside its definition.
+- **Offline by default** — most lookups are served from the bundled WordNet dataset.
+- **Pronunciation support** — play a provided audio recording when available, or use your browser's speech voice.
+- **Language-aware speech** — ContextWord detects the selected sentence's language and uses a compatible browser voice when one is installed.
+- **Word-form matching** — common plurals and `-ed`, `-ing`, and `-ies` forms can resolve to their base entries.
+- **Useful controls** — drag the definition panel, press `Escape`, or use the close button.
+- **Configurable auto-close** — choose how long a definition stays visible, or keep it open until you close it.
+- **Local history** — see recent lookups from the toolbar flyout.
+- **Optional online fallback** — look up an unavailable word through DictionaryAPI only when you explicitly enable it.
 
 ## Install locally
 
 ### Requirements
 
-- Google Chrome or another Chromium-based browser
+- Google Chrome, Microsoft Edge, or another Chromium-based browser
 - Node.js 20 or later
 - npm
 
-### Build
+### Build the extension
 
 ```bash
 git clone <repository-url>
@@ -32,87 +36,97 @@ npm install
 npm run build
 ```
 
-### Load in Chrome
+### Load it in your browser
 
-1. Open `chrome://extensions`.
-2. Enable **Developer mode** in the upper-right corner.
-3. Click **Load unpacked**.
-4. Select the project's `dist` folder:
+1. Open `chrome://extensions` (or your browser's extensions page).
+2. Turn on **Developer mode**.
+3. Select **Load unpacked**.
+4. Choose the generated `dist` directory — not `src` or the project root.
+5. Pin ContextWord from the extensions menu if you want quick access to its toolbar flyout.
+6. Open or refresh an ordinary `http://` or `https://` webpage.
 
-   ```text
-   D:\Dictonary-extension\dist
-   ```
+After changing the source, rebuild the extension, click **Reload** on its extensions-page card, and refresh the webpage you are testing.
 
-5. Open or refresh a normal `http://` or `https://` webpage.
+## Using ContextWord
 
-Do not select `src`, `assets`, or `content.js`; Chrome must load the `dist` folder containing `manifest.json`.
+1. Visit a regular webpage such as an article, blog, or documentation site.
+2. Double-click a single word, for example `ephemeral`.
+3. Read the definition and the original sentence in the panel.
+4. Use the speaker control to play pronunciation.
+5. Drag the panel by its header if you want to move it.
+6. Close it with **×**, by pressing `Escape`, or by waiting for the configured auto-close delay.
 
-## How to use ContextWord
+Click the ContextWord icon in the browser toolbar to open the flyout. It shows the extension status, recent lookups, and a link to Settings.
 
-1. Visit an article, blog, documentation page, or another normal webpage.
-2. Double-click one regular word, for example `ephemeral`, `psychologists`, or `symphony`.
-3. The ContextWord card appears in the bottom-right with the definition and original sentence.
-4. Click the speaker button beside the word to hear its pronunciation; click it again to stop.
-5. Drag the card by its header to move it.
-6. Click `×` or press `Escape` to close it.
+> ContextWord cannot run on browser-internal pages such as `chrome://` or on the Chrome Web Store.
 
-Click the ContextWord toolbar icon to view recent lookups or open **Settings**.
+## Settings
 
-### Settings
+| Setting | What it does |
+| --- | --- |
+| Enable double-click lookup | Turns webpage lookup on or off. |
+| Save lookup history | Keeps recent words on this device. |
+| Close definitions automatically | Sets the number of seconds before a definition panel closes. Set it to `0` to keep panels open. The default is 10 seconds. |
+| Theme | Select Light, System, or Dark presentation for the definition panel. |
+| Use online dictionary for missing words | Allows a word absent from the offline dictionary to be sent to DictionaryAPI. This is off by default. |
 
-- **Enable double-click lookup**: turn lookup on or off.
-- **Save lookup history**: save a limited list of words locally.
-- **Theme**: choose Light, System, or Dark.
-- **Use online dictionary for missing words**: disabled by default. When enabled, only a selected word not found in the offline dataset is sent to `dictionaryapi.dev`. No webpage text is sent.
+## Privacy and permissions
+
+ContextWord requests only the permissions required for its core behavior:
+
+- **`storage`** stores settings and recent lookups locally in the browser.
+- **`https://api.dictionaryapi.dev/*`** is used only if you enable the optional fallback for words missing from the bundled dictionary.
+
+By default, ContextWord does not send the selected word, webpage text, or sentence context to any server. It has no account system, analytics, or browsing-history collection. When the optional fallback is enabled, only the missing lookup word is sent to DictionaryAPI; sentence context is never sent.
 
 ## Development
 
 ```bash
-npm run dev       # rebuild when files change
-npm run build     # type-check and create dist/
-npm run lint      # lint TypeScript and React code
-npm run test      # run unit tests
+npm run dev              # rebuild while files change
+npm run build            # type-check and create dist/
+npm run lint             # lint the project
+npm run test             # run unit tests
+npm run build:dictionary # regenerate the offline dictionary data
 ```
 
-After any build, click **Reload** for ContextWord at `chrome://extensions`, then refresh each webpage you are testing. A page that was open during reload can show `Extension context invalidated`; refreshing that page installs the new content script.
+### Project structure
+
+```text
+src/
+  background/   Extension service worker and dictionary fallback
+  components/   Shared React UI, including the definition panel
+  content/      Webpage selection and panel injection
+  options/      Settings page
+  popup/        Browser-toolbar flyout
+  services/     Storage and dictionary access
+  utils/        Selection, word, and theme helpers
+public/         Manifest and offline dictionary data
+scripts/        Build and dictionary-generation scripts
+dist/           Generated extension ready to load (created by npm run build)
+```
 
 ## Offline dictionary
 
-The release includes 147,806 processed WordNet 3.0 entries in `public/data/wordnet-v2/`. Entries are split by their first three letters so ContextWord loads only a small local shard for a lookup. End users do not download or configure this data.
+The extension ships with processed WordNet 3.0 data in `public/data/wordnet-v2/`. Entries are split into small files by their first three letters, which lets the extension load only the relevant local data for a lookup.
 
-Maintainers can regenerate it from the official WordNet files:
+End users do not need to download or configure this data. Maintainers can regenerate it with:
 
 ```bash
 npm run build:dictionary
 ```
 
-The downloaded source data belongs in `vendor/` and is ignored by Git. Retain the attribution in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) when distributing the dataset.
-
-## Privacy and permissions
-
-ContextWord requests:
-
-- `storage` to keep settings, cached results, and recent lookups locally.
-- Access to `api.dictionaryapi.dev` only for the optional online fallback.
-
-By default, all definitions use the bundled offline dictionary. ContextWord has no account, analytics, or browsing-history collection. It never sends the full webpage or sentence context to a server.
+The source WordNet files are placed in `vendor/`, which is ignored by Git. Keep the attribution in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) when distributing the dataset.
 
 ## Troubleshooting
 
-| Problem | Fix |
+| Issue | Try this |
 | --- | --- |
-| Nothing appears after double-clicking | Reload ContextWord in `chrome://extensions`, refresh the webpage, then double-click a normal word. |
-| `Extension context invalidated` | Refresh the webpage after reloading the extension. |
-| Chrome says a file is illegal | Re-run `npm run build` and load only the current `dist` folder. |
-| An online service error appears | Disable **Use online dictionary for missing words** in Settings to use offline-only lookup. |
-| It does not work on a Chrome page | Extensions cannot run on `chrome://` pages or the Chrome Web Store. |
-
-## Roadmap
-
-- Context-specific AI explanations through a user-configured or self-hosted backend
-- Saved vocabulary, export, and review tools
-- Definition-sense selection and learning features
+| Nothing appears when I double-click | Make sure the extension is enabled in its settings, then reload the extension and refresh the webpage. |
+| I see “Extension context invalidated” | Refresh the webpage after reloading the extension. |
+| Chrome rejects the selected folder | Run `npm run build` and select the generated `dist` folder. |
+| An online lookup fails | Turn off the online fallback to use offline-only lookup, or check your internet connection. |
+| It does not work on a specific page | The extension cannot run on `chrome://` pages, the Chrome Web Store, or other browser-restricted pages. |
 
 ## Contributing and license
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance. ContextWord is licensed under the [MIT License](LICENSE).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance. ContextWord is available under the [MIT License](LICENSE).

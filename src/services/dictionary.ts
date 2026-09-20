@@ -10,9 +10,11 @@ function getOfflineBucket(word: string): Promise<Record<string, DictionaryEntry>
   const bucket = /^[a-z]{3}/.test(word) ? word.slice(0, 3) : "other";
   const existing = offlineBuckets.get(bucket);
   if (existing) return existing;
-  const request = fetch(chrome.runtime.getURL(`data/wordnet-v2/bucket-${bucket}.json`))
+  let url: string | undefined;
+  try { url = globalThis.chrome?.runtime?.getURL?.(`data/wordnet-v2/bucket-${bucket}.json`); } catch { url = undefined; }
+  const request = url ? fetch(url)
     .then((response) => response.ok ? response.json() as Promise<Record<string, DictionaryEntry>> : {})
-    .catch(() => ({}));
+    .catch(() => ({})) : Promise.resolve({});
   offlineBuckets.set(bucket, request);
   return request;
 }
@@ -58,8 +60,12 @@ export async function lookupDictionary(word: string): Promise<DictionaryEntry> {
 }
 
 async function fetchAndCache(word: string, key: string): Promise<DictionaryEntry> {
-  const local = chrome.storage?.local;
-  const cached = local ? await new Promise<Cached | undefined>((resolve) => local.get(key, (items) => resolve(items[key] as Cached | undefined))) : undefined;
+  const local = globalThis.chrome?.storage?.local;
+  const cached = local ? await new Promise<Cached | undefined>((resolve, reject) => local.get(key, (items) => {
+    const runtimeError = globalThis.chrome?.runtime?.lastError;
+    if (runtimeError) { reject(new Error(runtimeError.message)); return; }
+    resolve(items[key] as Cached | undefined);
+  })) : undefined;
   if (cached && Date.now() - cached.cachedAt < CACHE_TTL) {
     memoryCache.set(word, cached);
     return cached.data;
@@ -78,6 +84,10 @@ async function fetchAndCache(word: string, key: string): Promise<DictionaryEntry
   const data = responseToEntry(await response.json(), word);
   const entry = { data, cachedAt: Date.now() };
   memoryCache.set(word, entry);
-  if (local) await new Promise<void>((resolve) => local.set({ [key]: entry }, resolve));
+  if (local) await new Promise<void>((resolve, reject) => local.set({ [key]: entry }, () => {
+    const runtimeError = globalThis.chrome?.runtime?.lastError;
+    if (runtimeError) { reject(new Error(runtimeError.message)); return; }
+    resolve();
+  }));
   return data;
 }

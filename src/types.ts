@@ -25,6 +25,8 @@ export interface Settings {
   apiFallback: boolean;
   historyEnabled: boolean;
   maxHistory: number;
+  /** Number of seconds the definition panel remains visible; 0 disables auto-close. */
+  autoCloseDelaySeconds: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -32,5 +34,6 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "light",
   apiFallback: false,
   historyEnabled: true,
-  maxHistory: 100
+  maxHistory: 100,
+  autoCloseDelaySeconds: 10
 };

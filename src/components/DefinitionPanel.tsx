@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } fr
 import type { AdaptivePalette } from "../utils/adaptiveTheme";
 import type { DictionaryEntry } from "../types";
 
-interface Props { word: string; context: string; theme: "system" | "light" | "dark"; palette: AdaptivePalette; entry?: DictionaryEntry; error?: string; onClose: () => void; }
+interface Props { word: string; context: string; language: string; theme: "system" | "light" | "dark"; palette: AdaptivePalette; entry?: DictionaryEntry; error?: string; autoCloseDelaySeconds: number; onClose: () => void; }
 
-export function DefinitionPanel({ word, context, theme, palette, entry, error, onClose }: Props) {
+export function DefinitionPanel({ word, context, language, theme, palette, entry, error, autoCloseDelaySeconds, onClose }: Props) {
   const closeButton = useRef<HTMLButtonElement>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
   const [position, setPosition] = useState<{ x: number; y: number }>();
@@ -18,6 +18,11 @@ export function DefinitionPanel({ word, context, theme, palette, entry, error, o
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+  useEffect(() => {
+    if (autoCloseDelaySeconds <= 0) return;
+    const timer = window.setTimeout(onClose, autoCloseDelaySeconds * 1000);
+    return () => window.clearTimeout(timer);
+  }, [autoCloseDelaySeconds, onClose]);
   function startDrag(event: PointerEvent<HTMLDivElement>) {
     if ((event.target as Element).closest("button")) return;
     const panel = event.currentTarget.closest(".cw-panel") as HTMLElement | null;
@@ -43,7 +48,9 @@ export function DefinitionPanel({ word, context, theme, palette, entry, error, o
       if (!("speechSynthesis" in window)) return;
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(word);
-      utterance.lang = "en-US";
+      utterance.lang = language === "und" ? "en-US" : language;
+      const matchingVoice = window.speechSynthesis.getVoices().find((voice) => voice.lang.toLowerCase().startsWith(utterance.lang.toLowerCase()));
+      if (matchingVoice) utterance.voice = matchingVoice;
       utterance.rate = 0.85;
       utterance.onend = () => setIsSpeaking(false);
       utterance.onerror = () => setIsSpeaking(false);
@@ -72,7 +79,7 @@ export function DefinitionPanel({ word, context, theme, palette, entry, error, o
     ...(position ? { left: position.x, top: position.y, right: "auto", bottom: "auto" } : {})
   };
   return <aside className={`cw-panel${theme === "dark" ? " cw-theme-dark" : ""}`} style={style} role="dialog" aria-modal="false" aria-label={`Definition of ${word}`}>
-    <div className="cw-head" onPointerDown={startDrag} title="Drag to move"><div className="cw-title-block"><span className="cw-eyebrow">ContextWord <i>·</i> word insight</span><h1 className="cw-word">{word}</h1><div className="cw-meta">{entry?.phonetic && <span className="cw-phonetic">{entry.phonetic}</span>}{entry?.partOfSpeech && <span className="cw-pos">{entry.partOfSpeech}</span>}{entry && <button className={`cw-audio${isSpeaking ? " cw-audio-playing" : ""}`} aria-label={`${isSpeaking ? "Stop" : "Play"} pronunciation of ${word}`} aria-pressed={isSpeaking} onClick={playPronunciation}>{isSpeaking ? "■" : "🔊"}</button>}</div></div><button ref={closeButton} className="cw-close" onClick={onClose} aria-label="Close definition panel">×</button></div>
+    <div className="cw-head" onPointerDown={startDrag} title="Drag to move"><div className="cw-title-block"><span className="cw-eyebrow">ContextWord <i>·</i> word insight</span><h1 className="cw-word">{word}</h1><div className="cw-meta">{entry?.phonetic && <span className="cw-phonetic">{entry.phonetic}</span>}{entry?.partOfSpeech && <span className="cw-pos">{entry.partOfSpeech}</span>}{language !== "und" && <span className="cw-language" title={`Detected language: ${language}`}>{new Intl.DisplayNames(["en"], { type: "language" }).of(language) ?? language}</span>}{(entry || error) && <button className={`cw-audio${isSpeaking ? " cw-audio-playing" : ""}`} aria-label={`${isSpeaking ? "Stop" : "Play"} pronunciation of ${word}`} aria-pressed={isSpeaking} onClick={playPronunciation}>{isSpeaking ? "■" : "🔊"}</button>}</div></div><button ref={closeButton} className="cw-close" onClick={onClose} aria-label="Close definition panel">×</button></div>
     <div className="cw-rule" />
     {!entry && !error && <div className="cw-loading" role="status"><span className="cw-dot" /> Loading definition<span className="cw-loading-tail">...</span></div>}
     {error && <p className="cw-error" role="alert"><strong>Lookup unavailable</strong>{error}</p>}

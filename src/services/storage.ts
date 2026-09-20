@@ -2,17 +2,25 @@ import { DEFAULT_SETTINGS, type LookupRecord, type Settings } from "../types";
 
 const volatileStore: Record<string, unknown> = {};
 
-const get = <T>(key: string): Promise<T | undefined> => new Promise((resolve) => {
-  const local = chrome.storage?.local;
+const get = <T>(key: string): Promise<T | undefined> => new Promise((resolve, reject) => {
+  const local = globalThis.chrome?.storage?.local;
   if (!local) { resolve(volatileStore[key] as T | undefined); return; }
-  local.get(key, (items) => resolve(items[key] as T | undefined));
+  local.get(key, (items) => {
+    const runtimeError = globalThis.chrome?.runtime?.lastError;
+    if (runtimeError) { reject(new Error(runtimeError.message)); return; }
+    resolve(items[key] as T | undefined);
+  });
 });
 
-const set = (items: Record<string, unknown>): Promise<void> => new Promise((resolve) => {
+const set = (items: Record<string, unknown>): Promise<void> => new Promise((resolve, reject) => {
   Object.assign(volatileStore, items);
-  const local = chrome.storage?.local;
+  const local = globalThis.chrome?.storage?.local;
   if (!local) { resolve(); return; }
-  local.set(items, resolve);
+  local.set(items, () => {
+    const runtimeError = globalThis.chrome?.runtime?.lastError;
+    if (runtimeError) { reject(new Error(runtimeError.message)); return; }
+    resolve();
+  });
 });
 
 export async function getSettings(): Promise<Settings> {

@@ -14,16 +14,52 @@ const offlineBuckets = new Map<string, Promise<Record<string, DictionaryEntry>>>
 
 let stopPaletteUpdates: (() => void) | undefined;
 
+function extensionUrl(path: string): string | undefined {
+  try {
+    return globalThis.chrome?.runtime?.getURL?.(path);
+  } catch {
+    return undefined;
+  }
+}
+
+function safeSendMessage<T>(message: unknown): Promise<T | undefined> {
+  const runtime = globalThis.chrome?.runtime;
+  if (!runtime?.sendMessage) return Promise.resolve(undefined);
+  return new Promise<T | undefined>((resolve) => {
+    try {
+      runtime.sendMessage(message, (response: T) => {
+        if (runtime.lastError) { resolve(undefined); return; }
+        resolve(response);
+      });
+    } catch {
+      resolve(undefined);
+    }
+  });
+}
+
+function detectLanguage(text: string): Promise<string> {
+  const i18n = globalThis.chrome?.i18n;
+  if (!i18n?.detectLanguage) return Promise.resolve("und");
+  try {
+    return i18n.detectLanguage(text)
+      .then((result) => result.languages[0]?.language ?? "und")
+      .catch(() => "und");
+  } catch {
+    return Promise.resolve("und");
+  }
+}
+
 function unmountPanel() { stopPaletteUpdates?.(); stopPaletteUpdates = undefined; root?.unmount(); host?.remove(); root = undefined; host = undefined; }
-function render(word: string, context: string, theme: Settings["theme"], palette: AdaptivePalette, entry?: DictionaryEntry, error?: string) { root?.render(<DefinitionPanel word={word} context={context} theme={theme} palette={palette} entry={entry} error={error} onClose={unmountPanel} />); }
+function render(word: string, context: string, language: string, theme: Settings["theme"], palette: AdaptivePalette, autoCloseDelaySeconds: number, entry?: DictionaryEntry, error?: string) { root?.render(<DefinitionPanel word={word} context={context} language={language} theme={theme} palette={palette} autoCloseDelaySeconds={autoCloseDelaySeconds} entry={entry} error={error} onClose={unmountPanel} />); }
 
 function lookupOffline(word: string): Promise<DictionaryEntry | undefined> {
   const bucket = /^[a-z]{3}/.test(word) ? word.slice(0, 3) : "other";
   let request = offlineBuckets.get(bucket);
   if (!request) {
-    request = fetch(chrome.runtime.getURL(`data/wordnet-v2/bucket-${bucket}.json`))
+    const url = extensionUrl(`data/wordnet-v2/bucket-${bucket}.json`);
+    request = url ? fetch(url)
       .then((response) => response.ok ? response.json() as Promise<Record<string, DictionaryEntry>> : {})
-      .catch(() => ({}));
+      .catch(() => ({})) : Promise.resolve({});
     offlineBuckets.set(bucket, request);
   }
   return request.then((entries) => {
@@ -69,13 +105,20 @@ function showLookup(word: string, context: string, theme: Settings["theme"], set
   const mount = document.createElement("div"); shadow.append(style, mount); document.documentElement.append(host);
   root = createRoot(mount);
   let view: { entry?: DictionaryEntry; error?: string } = {};
+  let language = "und";
   let palette = fallbackPalette;
-  const rerender = () => render(word, context, theme, palette, view.entry, view.error);
+  let autoCloseDelaySeconds = DEFAULT_SETTINGS.autoCloseDelaySeconds;
+  const rerender = () => render(word, context, language, theme, palette, autoCloseDelaySeconds, view.entry, view.error);
   const refreshPalette = () => {
     palette = extractPagePalette();
     rerender();
   };
   refreshPalette();
+  detectLanguage(context).then((detectedLanguage) => {
+    if (version !== lookupVersion || !root) return;
+    language = detectedLanguage;
+    rerender();
+  });
   let paletteTimer: number | undefined;
   const schedulePaletteRefresh = () => {
     window.clearTimeout(paletteTimer);
@@ -87,11 +130,16 @@ function showLookup(word: string, context: string, theme: Settings["theme"], set
   window.addEventListener("scroll", schedulePaletteRefresh, { passive: true });
   stopPaletteUpdates = () => { window.clearTimeout(paletteTimer); observer.disconnect(); window.removeEventListener("resize", schedulePaletteRefresh); window.removeEventListener("scroll", schedulePaletteRefresh); };
   const version = ++lookupVersion;
+  settings.then((currentSettings) => {
+    if (version !== lookupVersion || !root) return;
+    autoCloseDelaySeconds = currentSettings.autoCloseDelaySeconds;
+    rerender();
+  });
   lookupOffline(word).then((offlineEntry) => {
     if (version !== lookupVersion || !root) return;
     if (offlineEntry) {
       view = { entry: offlineEntry }; rerender();
-      chrome.runtime.sendMessage({ type: "record", record: { word, context, lookedUpAt: new Date().toISOString() } });
+      void safeSendMessage({ type: "record", record: { word, context, lookedUpAt: new Date().toISOString() } });
       return;
     }
     settings.then((currentSettings) => {
@@ -100,12 +148,12 @@ function showLookup(word: string, context: string, theme: Settings["theme"], set
         view = { error: "This word is not available in the offline dictionary." }; rerender();
         return;
       }
-      chrome.runtime.sendMessage({ type: "lookup", word }, (response: { ok: boolean; entry?: DictionaryEntry; error?: string }) => {
+      safeSendMessage<{ ok: boolean; entry?: DictionaryEntry; error?: string }>({ type: "lookup", word }).then((response) => {
     if (version !== lookupVersion || !root) return;
-    if (chrome.runtime.lastError) { view = { error: "Unable to contact ContextWord. Please try again." }; rerender(); return; }
+    if (!response) { view = { error: "Unable to contact ContextWord. Please try again." }; rerender(); return; }
     if (response.ok && response.entry) {
       view = { entry: response.entry }; rerender();
-      chrome.runtime.sendMessage({ type: "record", record: { word, context, lookedUpAt: new Date().toISOString() } });
+      void safeSendMessage({ type: "record", record: { word, context, lookedUpAt: new Date().toISOString() } });
     } else { view = { error: response.error ?? "Dictionary lookup failed." }; rerender(); }
       });
     });
@@ -113,12 +161,8 @@ function showLookup(word: string, context: string, theme: Settings["theme"], set
 }
 
 function readSettings(): Promise<Settings> {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type: "settings" }, (response: { ok?: boolean; settings?: Settings }) => {
-      if (chrome.runtime.lastError || !response?.ok || !response.settings) resolve(DEFAULT_SETTINGS);
-      else resolve(response.settings);
-    });
-  });
+  return safeSendMessage<{ ok?: boolean; settings?: Settings }>({ type: "settings" })
+    .then((response) => response?.ok && response.settings ? response.settings : DEFAULT_SETTINGS);
 }
 
 document.addEventListener("dblclick", async (event) => {
