@@ -6,8 +6,14 @@ interface Props { word: string; context: string; theme: "system" | "light" | "da
 
 export function DefinitionPanel({ word, context, theme, palette, entry, error, onClose }: Props) {
   const closeButton = useRef<HTMLButtonElement>(null);
+  const audio = useRef<HTMLAudioElement | null>(null);
   const [position, setPosition] = useState<{ x: number; y: number }>();
+  const [isSpeaking, setIsSpeaking] = useState(false);
   useEffect(() => { closeButton.current?.focus(); }, []);
+  useEffect(() => () => {
+    audio.current?.pause();
+    window.speechSynthesis?.cancel();
+  }, []);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey);
@@ -26,6 +32,33 @@ export function DefinitionPanel({ word, context, theme, palette, entry, error, o
     const end = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", end); };
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", end, { once: true });
   }
+  function playPronunciation() {
+    if (isSpeaking) {
+      audio.current?.pause();
+      window.speechSynthesis?.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+    const speak = () => {
+      if (!("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(word);
+      utterance.lang = "en-US";
+      utterance.rate = 0.85;
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+      setIsSpeaking(true);
+      window.speechSynthesis.speak(utterance);
+    };
+    if (!entry?.audio) { speak(); return; }
+    audio.current?.pause();
+    const pronunciation = new Audio(entry.audio);
+    audio.current = pronunciation;
+    pronunciation.onended = () => setIsSpeaking(false);
+    pronunciation.onerror = () => { setIsSpeaking(false); speak(); };
+    setIsSpeaking(true);
+    pronunciation.play().catch(speak);
+  }
   const style: CSSProperties & Record<`--${string}`, string> = {
     "--accent": palette.accent,
     "--accent-soft": palette.accentSoft,
@@ -39,7 +72,7 @@ export function DefinitionPanel({ word, context, theme, palette, entry, error, o
     ...(position ? { left: position.x, top: position.y, right: "auto", bottom: "auto" } : {})
   };
   return <aside className={`cw-panel${theme === "dark" ? " cw-theme-dark" : ""}`} style={style} role="dialog" aria-modal="false" aria-label={`Definition of ${word}`}>
-    <div className="cw-head" onPointerDown={startDrag} title="Drag to move"><div className="cw-title-block"><span className="cw-eyebrow">ContextWord <i>·</i> word insight</span><h1 className="cw-word">{word}</h1><div className="cw-meta">{entry?.phonetic && <span className="cw-phonetic">{entry.phonetic}</span>}{entry?.partOfSpeech && <span className="cw-pos">{entry.partOfSpeech}</span>}{entry?.audio && <button className="cw-audio" aria-label={`Play pronunciation of ${word}`} onClick={() => new Audio(entry.audio).play().catch(() => undefined)}>🔊</button>}</div></div><button ref={closeButton} className="cw-close" onClick={onClose} aria-label="Close definition panel">×</button></div>
+    <div className="cw-head" onPointerDown={startDrag} title="Drag to move"><div className="cw-title-block"><span className="cw-eyebrow">ContextWord <i>·</i> word insight</span><h1 className="cw-word">{word}</h1><div className="cw-meta">{entry?.phonetic && <span className="cw-phonetic">{entry.phonetic}</span>}{entry?.partOfSpeech && <span className="cw-pos">{entry.partOfSpeech}</span>}{entry && <button className={`cw-audio${isSpeaking ? " cw-audio-playing" : ""}`} aria-label={`${isSpeaking ? "Stop" : "Play"} pronunciation of ${word}`} aria-pressed={isSpeaking} onClick={playPronunciation}>{isSpeaking ? "■" : "🔊"}</button>}</div></div><button ref={closeButton} className="cw-close" onClick={onClose} aria-label="Close definition panel">×</button></div>
     <div className="cw-rule" />
     {!entry && !error && <div className="cw-loading" role="status"><span className="cw-dot" /> Loading definition<span className="cw-loading-tail">...</span></div>}
     {error && <p className="cw-error" role="alert"><strong>Lookup unavailable</strong>{error}</p>}

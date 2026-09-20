@@ -19,6 +19,7 @@ export const panelCss = `
 .cw-muted { color:var(--text-secondary); }
 .cw-pos { padding:3px 8px; border-radius:5px; background:var(--accent-soft); color:var(--accent); font-size:11px; font-weight:700; letter-spacing:.02em; text-transform:capitalize; }
 .cw-audio { margin-left:0; color:var(--accent); }
+.cw-audio-playing { background:var(--accent); color:var(--surface); }
 .cw-rule { height:1px; margin:20px 0 18px; background:var(--border); }
 .cw-section { margin-top:20px; }
 .cw-label { display:block; margin-bottom:8px; color:var(--text-secondary); font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }

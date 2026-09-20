@@ -8,6 +8,7 @@ ContextWord is an open-source Chrome extension that lets you double-click a word
 
 - Double-click a word to open a definition card on the webpage.
 - Offline definitions, parts of speech, synonyms, and surrounding sentence context.
+- Voice pronunciation for every lookup, using a supplied dictionary recording when available and the browser voice otherwise.
 - Handles common word forms such as plurals, `-ed`, `-ing`, and `-ies` words.
 - Draggable, keyboard-accessible panel; press `Escape` or click `×` to close it.
 - Light theme by default, with System and Dark options.
@@ -51,8 +52,9 @@ Do not select `src`, `assets`, or `content.js`; Chrome must load the `dist` fold
 1. Visit an article, blog, documentation page, or another normal webpage.
 2. Double-click one regular word, for example `ephemeral`, `psychologists`, or `symphony`.
 3. The ContextWord card appears in the bottom-right with the definition and original sentence.
-4. Drag the card by its header to move it.
-5. Click `×` or press `Escape` to close it.
+4. Click the speaker button beside the word to hear its pronunciation; click it again to stop.
+5. Drag the card by its header to move it.
+6. Click `×` or press `Escape` to close it.
 
 Click the ContextWord toolbar icon to view recent lookups or open **Settings**.
 
